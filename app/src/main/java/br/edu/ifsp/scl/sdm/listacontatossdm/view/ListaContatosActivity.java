@@ -1,9 +1,13 @@
 package br.edu.ifsp.scl.sdm.listacontatossdm.view;
 
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.support.annotation.Nullable;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.ContextMenu;
 import android.view.Menu;
@@ -14,16 +18,23 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import br.edu.ifsp.scl.sdm.listacontatossdm.R;
 import br.edu.ifsp.scl.sdm.listacontatossdm.adapter.ListaContatosAdapter;
 import br.edu.ifsp.scl.sdm.listacontatossdm.model.Contato;
+import br.edu.ifsp.scl.sdm.listacontatossdm.util.ArmazenamentoHelper;
+import br.edu.ifsp.scl.sdm.listacontatossdm.util.Configuracoes;
+import br.edu.ifsp.scl.sdm.listacontatossdm.util.JsonHelper;
 
 public class ListaContatosActivity extends AppCompatActivity implements AdapterView.OnItemClickListener {
     //REQUEST_CODE para a abertura da tela ContatoActivity - MODO NOVO CONTATO
     private final int NOVO_CONTATO_REQUEST_CODE = 0;
+
+    private final int CONFIGURACAO_REQUEST_CODE = 1;
 
     //constante para passar parâmetros para a tela ContatoActivity - MODO DETALHES
     public static final String CONTATO_EXTRA = "CONTATO_EXTRA";
@@ -36,8 +47,13 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
     // Lista de contatos usada para preencher ListView
     private List<Contato> listaContatos;
 
-    //Adapter
+    //Adapter que preenche ListView
     private ListaContatosAdapter listaContatosAdapter;
+
+    //Shared preferences
+    private SharedPreferences sharedPreferences;
+    private final String CONFIGURACOES_SHARED_PREFERENCES = "CONFIGURACOES";
+    private final String TIPO_ARMAZENAMENTO_SHARED_PREFERENCES = "TIPO_ARMAZENAMENTO";
 
 
     @Override
@@ -76,9 +92,62 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
         listaContatosListView.setOnItemClickListener(this);
 
 
+
+        sharedPreferences = getSharedPreferences(CONFIGURACOES_SHARED_PREFERENCES, MODE_PRIVATE);
+        restauraConfiguracoes();
+
+
+        restauraContatos();
+
+
+    }
+
+    private void restauraContatos() {
+
+        try {
+            JSONArray jsonArray = ArmazenamentoHelper.buscarContatos(this, Configuracoes.getInstance().getTipoArmazenamento());
+
+            if (jsonArray != null) {
+                List<Contato> contatosSalvosList = JsonHelper.jsonArrayParaListaContatos(jsonArray);
+                listaContatos.addAll(contatosSalvosList);
+                listaContatosAdapter.notifyDataSetChanged();
+                ;
+            }
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+
     }
 
 
+    private void restauraConfiguracoes() {
+        int tipoArmazenamento = sharedPreferences.getInt(TIPO_ARMAZENAMENTO_SHARED_PREFERENCES, Configuracoes.ARMAZENAMENTO_INTERNO);
+        Configuracoes.getInstance().setTipoArmazenamento(tipoArmazenamento);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        salvaConfiguracoes();
+
+        try{
+            JSONArray jsonArray = JsonHelper.listaContatosParaJsonArray(listaContatos);
+            if(jsonArray != null){
+                ArmazenamentoHelper.salvarContatos(this, Configuracoes.getInstance().getTipoArmazenamento(), jsonArray);
+            }
+        }
+        catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    //salva as info no shared preferences
+    private void salvaConfiguracoes() {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putInt(TIPO_ARMAZENAMENTO_SHARED_PREFERENCES, Configuracoes.getInstance().getTipoArmazenamento());
+        editor.commit();
+    }
 
 
     private void preencheListaContatos(){
@@ -102,6 +171,8 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()){
             case R.id.configuracaoMenuItem:
+                Intent configuracoesIntent = new Intent(this, ConfiguracoesActivity.class);
+                startActivityForResult(configuracoesIntent, CONFIGURACAO_REQUEST_CODE);
                 return true;
             case R.id.novoContatoMenuItem:
                 //Abrindo tela de novo contato
@@ -177,16 +248,54 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
 
                 return true;
             case R.id.ligarParaContatoMenuItem:
+                Uri telefoneUri = Uri.parse("tel:" + contato.getTelefone());
+                Intent ligarContato = new Intent(Intent.ACTION_DIAL, telefoneUri);
+                startActivity(ligarContato);
+
                 return true;
             case R.id.verEnderecoMenuItem:
+                Uri enderecoUri = Uri.parse("geo:0,0?q=" + contato.getEndereco());
+                Intent verEnderecoView = new Intent(Intent.ACTION_VIEW, enderecoUri);
+                startActivity(verEnderecoView);
                 return true;
             case R.id.enviarEmailMenuItem:
+                Uri emailUri = Uri.parse("mailto:" + contato.getEmail());
+                Intent enviarEmailIntent = new Intent(Intent.ACTION_SENDTO, emailUri);
+                startActivity(enviarEmailIntent);
                 return true;
             case R.id.removerContatolMenuItem:
+                removerContato(infoMenu.position); //posição do contato para ser removido
                 return true;
         }
 
         return false;
+    }
+
+    private void removerContato(final int posicao) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setCancelable(true);
+        builder.setMessage("Confirmar remoção?");
+
+        builder.setPositiveButton("Sim", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                listaContatos.remove(posicao);
+                listaContatosAdapter.notifyDataSetChanged();
+            }
+        });
+
+
+        builder.setNegativeButton("Não", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                //faz nada
+            }
+        });
+
+
+        AlertDialog removeAlertDialog = builder.create();
+        removeAlertDialog.show();
+
     }
 
     public void onItemClick(AdapterView<?> adapterView, View view, int posicao, long l){
