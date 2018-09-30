@@ -30,8 +30,6 @@ public class ListaContatosAdapter extends ArrayAdapter<Contato> {
         Holder holder;
 
 
-
-
         //Se ainda não foi inflada
         if(convertView == null){
             convertView = layoutInflater.inflate(R.layout.layout_view_contato_adapter, null);
@@ -52,12 +50,7 @@ public class ListaContatosAdapter extends ArrayAdapter<Contato> {
 
 
 
-
-
-        //Vai na lista passada como parâmetro e retorna o elemento da posição
-        Contato contato = getItem(position);
-
-
+        //Métodos antigos de baixa performance
         //TextView nomeContatoTextView = convertView.findViewById(R.id.nomeContatoTextView);
         //TextView emailContatoTextView = convertView.findViewById(R.id.emailContatoTextView);
 
@@ -65,6 +58,9 @@ public class ListaContatosAdapter extends ArrayAdapter<Contato> {
         //emailContatoTextView.setText(contato.getEmail());
 
 
+
+        //Vai na lista passada como parâmetro e retorna o elemento da posição
+        Contato contato = getItem(position);
         holder.nomeContatoTextView.setText(contato.getNome());
         holder.emailContatoTextView.setText(contato.getEmail());
 

@@ -19,10 +19,18 @@ public class ContatoActivity extends AppCompatActivity implements View.OnClickLi
     private Button cancelarButton;
     private Button salvarButton;
 
+    Contato contatoParaEdicao;
+
+    //Usado para manter o índice da lista de contatos que deverá ser atualizado - MODO EDIÇÃO
+    private int indiceListViewEdicao;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_contato);
+
+
+        contatoParaEdicao = null;
 
 
         //Buscando refrências de layout
@@ -38,16 +46,20 @@ public class ContatoActivity extends AppCompatActivity implements View.OnClickLi
         salvarButton.setOnClickListener(this);
 
         String subtitulo;
+        //Obtém da Intent o objeto Contato passado no clique de detalhamento
         Contato contato = (Contato) getIntent().getSerializableExtra(ListaContatosActivity.CONTATO_EXTRA);
 
-
-        Contato contatoParaEdicao = (Contato) getIntent().getSerializableExtra(ListaContatosActivity.CONTATO_EDITAR_EXTRA);
+        //Obtém da Intent o objeto Contato passado no clique de menu de contexto para a Edição
+        contatoParaEdicao = (Contato) getIntent().getSerializableExtra(ListaContatosActivity.CONTATO_EDITAR_EXTRA);
 
         if (contatoParaEdicao != null) {
             //Modo edição
 
             subtitulo = "Edição do contato";
             modoEdicao(contatoParaEdicao);
+
+
+            indiceListViewEdicao = getIntent().getIntExtra(ListaContatosActivity.LIST_VIEW_INDICE, -1);
         }
 
         if (contato != null) {
@@ -99,6 +111,7 @@ public class ContatoActivity extends AppCompatActivity implements View.OnClickLi
         salvarButton.setVisibility(View.VISIBLE);
     }
 
+    //Trata os cliques do botão Cancelar e Salvar
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
@@ -109,14 +122,20 @@ public class ContatoActivity extends AppCompatActivity implements View.OnClickLi
                 break;
 
             case R.id.salvarButton:
-                Contato novoContato = new Contato();
+                Contato novoContato = new Contato(); //novoContato serve para a edição também, não quiz mudar o nome para não "confundir" o código base ensinado em aula pelo professor
                 novoContato.setNome((nomeEditText.getText().toString()));
                 novoContato.setEndereco(enderecoEditText.getText().toString());
                 novoContato.setTelefone(telefoneEditText.getText().toString());
                 novoContato.setEmail(emailEditText.getText().toString());
 
                 Intent resultadoIntent = new Intent();
-                resultadoIntent.putExtra(ListaContatosActivity.CONTATO_EXTRA, novoContato);
+                if (contatoParaEdicao != null) {    //modo edição
+
+                    resultadoIntent.putExtra(ListaContatosActivity.CONTATO_EDITAR_EXTRA, novoContato); //modo edição
+                    resultadoIntent.putExtra(ListaContatosActivity.LIST_VIEW_INDICE, indiceListViewEdicao);
+                }else {                             //modo cadastro
+                    resultadoIntent.putExtra(ListaContatosActivity.CONTATO_EXTRA, novoContato); //modo cadastro
+                }
 
                 setResult(RESULT_OK, resultadoIntent);
                 finish(); //fecha a tela

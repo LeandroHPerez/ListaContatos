@@ -36,11 +36,15 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
 
     private final int CONFIGURACAO_REQUEST_CODE = 1;
 
-    //constante para passar parâmetros para a tela ContatoActivity - MODO DETALHES
+    //REQUEST_CODE para a abertura da tela ContatoActivity - MODO EDIÇÃO DE CONTATO
+    private final int EDICAO_CONTATO_REQUEST_CODE = 2;
+
+    //constante para passar parâmetros para a tela ContatoActivity - MODO DETALHES ou SALVAR
     public static final String CONTATO_EXTRA = "CONTATO_EXTRA";
 
-
+    //constante para passar parâmetros para a tela ContatoActivity - MODO EDITAR
     public static final String CONTATO_EDITAR_EXTRA = "CONTATO_EDITAR_EXTRA";
+    public static final String LIST_VIEW_INDICE = "LIST_VIEW_INDICE";
 
     private ListView listaContatosListView;
 
@@ -89,6 +93,7 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
         //Faz o menu de contexto aparecer na listview de contatos
         registerForContextMenu(listaContatosListView);
 
+        //Registra o listener para clique em itens da lista
         listaContatosListView.setOnItemClickListener(this);
 
 
@@ -194,23 +199,22 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         switch (requestCode){
-            case NOVO_CONTATO_REQUEST_CODE:
+            //Trata Resultado da inclusão do contato
+            case NOVO_CONTATO_REQUEST_CODE: //Novo Contato
                 if(resultCode == RESULT_OK){
-                    // recupera o contato da Intent data
 
+                    // recupera o contato da Intent data
                     Contato novoContato = (Contato) data.getSerializableExtra(ListaContatosActivity.CONTATO_EXTRA);
 
 
-                    //Atualizo lista
+                    //Atualizo lista com o novo contato
                     if (novoContato != null){
                         listaContatos.add(novoContato);
-                        listaContatosAdapter.notifyDataSetChanged(); //avisa o adapter dealteração na lista de dados
+                        listaContatosAdapter.notifyDataSetChanged(); //avisa o adapter sobre a alteração na lista de dados
 
                         Toast.makeText(this, "Novo contato adicionado!", Toast.LENGTH_SHORT).show();
                     }
 
-
-                    //notifico o adapter
                 } else {
                     if(resultCode == RESULT_CANCELED){
                         //não faria nada
@@ -218,6 +222,40 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
 
                     }
                 }
+                break;
+
+            //Trata Resultado da edição do contato
+            case EDICAO_CONTATO_REQUEST_CODE: //Editar Contato
+                if(resultCode == RESULT_OK){
+
+                    //Toast.makeText(this, "Modo edição", Toast.LENGTH_SHORT).show();
+
+                    // recupera o contato da Intent data
+                    Contato editarContato = (Contato) data.getSerializableExtra(ListaContatosActivity.CONTATO_EDITAR_EXTRA);
+                    int indiceListViewEdicao = data.getIntExtra(LIST_VIEW_INDICE, -1);
+
+
+                    //Atualizo lista com o contato editado
+                    if (editarContato != null){
+                        if (indiceListViewEdicao != -1) {
+                            listaContatos.set(indiceListViewEdicao, editarContato); //Atualizsa a lista com o contato editado
+                            Toast.makeText(this, "Contato Atualizado!", Toast.LENGTH_SHORT).show();
+                        }
+                        listaContatosAdapter.notifyDataSetChanged(); //avisa o adapter sobre a alteração na lista de dados
+
+
+                    }
+
+                } else {
+                    if(resultCode == RESULT_CANCELED){
+                        //não faria nada
+                        Toast.makeText(this, "Edição cancelada!", Toast.LENGTH_SHORT).show();
+
+                    }
+                }
+                break;
+
+
         }
     }
 
@@ -233,6 +271,7 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
 
     @Override
     public boolean onContextItemSelected(MenuItem item) {
+        //Ontém objeto de informações do menu de contexto
         AdapterView.AdapterContextMenuInfo infoMenu = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
 
         //como o menu é de contexto
@@ -244,7 +283,10 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
 
                 Intent detalhesContatoIntent = new Intent(this, ContatoActivity.class);
                 detalhesContatoIntent.putExtra(CONTATO_EDITAR_EXTRA, contato);
-                startActivity(detalhesContatoIntent);
+                detalhesContatoIntent.putExtra(LIST_VIEW_INDICE, infoMenu.position); //passa a posição do contato editado
+
+
+                startActivityForResult(detalhesContatoIntent, EDICAO_CONTATO_REQUEST_CODE);
 
                 return true;
             case R.id.ligarParaContatoMenuItem:
@@ -298,9 +340,11 @@ public class ListaContatosActivity extends AppCompatActivity implements AdapterV
 
     }
 
+    //Trata clique em itens da lista
     public void onItemClick(AdapterView<?> adapterView, View view, int posicao, long l){
         Contato contato = listaContatos.get(posicao);
 
+        //Abre a tela de detalhes do item clicado
         Intent detalhesContatoIntent = new Intent(this, ContatoActivity.class);
         detalhesContatoIntent.putExtra(CONTATO_EXTRA, contato);
         startActivity(detalhesContatoIntent);
